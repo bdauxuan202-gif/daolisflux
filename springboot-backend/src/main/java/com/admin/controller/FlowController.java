@@ -250,7 +250,7 @@ public class FlowController extends BaseController {
         // 检查用户总流量限制
         long userFlowLimit = updatedUser.getFlow() * BYTES_TO_GB;
         long userCurrentFlow = updatedUser.getInFlow() + updatedUser.getOutFlow();
-        if (userFlowLimit < userCurrentFlow) {
+        if (userFlowLimit <= userCurrentFlow) {
             pauseAllUserServices(userId, name);
             return;
         }

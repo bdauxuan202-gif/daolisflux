@@ -414,7 +414,17 @@ func (s *defaultService) observeStats(ctx context.Context) {
 						fmt.Printf("发送流量报告失败: %v", err)
 					} else if success {
 						if xstats, ok := st.(*xstats.Stats); ok {
-							xstats.ResetTraffic(st.Get(stats.KindInputBytes)-inputBytes, st.Get(stats.KindOutputBytes)-outputBytes)
+							currentInput := st.Get(stats.KindInputBytes)
+							currentOutput := st.Get(stats.KindOutputBytes)
+							var remainingInput uint64
+							var remainingOutput uint64
+							if currentInput > inputBytes {
+								remainingInput = currentInput - inputBytes
+							}
+							if currentOutput > outputBytes {
+								remainingOutput = currentOutput - outputBytes
+							}
+							xstats.ResetTraffic(remainingInput, remainingOutput)
 						}
 					}
 				}

@@ -50,6 +50,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String SUCCESS_CREATE_MSG = "节点创建成功";
     private static final String SUCCESS_UPDATE_MSG = "节点更新成功";
     private static final String SUCCESS_DELETE_MSG = "节点删除成功";
+    private static final String SUCCESS_UPDATE_WITH_PROTOCOL_SYNC_WARNING = "节点更新成功，但协议配置下发失败";
     
     /** 错误响应消息 */
     private static final String ERROR_CREATE_MSG = "节点创建失败";
@@ -66,6 +67,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String ERROR_PORT_END_REQUIRED = "结束端口不能为空";
     private static final String ERROR_PORT_RANGE_INVALID = "端口必须在1-65535范围内";
     private static final String ERROR_PORT_ORDER_INVALID = "结束端口不能小于起始端口";
+    private static final int TUNNEL_STATUS_ACTIVE = 1;
 
     // ========== 依赖注入 ==========
     
@@ -134,6 +136,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
         boolean tlsChanged = newTls != null && !newTls.equals(node.getTls());
         boolean socksChanged = newSocks != null && !newSocks.equals(node.getSocks());
 
+        boolean protocolSyncFailed = false;
         if (online && (httpChanged || tlsChanged || socksChanged)) {
             JSONObject req = new JSONObject();
             req.put("http", newHttp);
@@ -142,7 +145,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
 
             GostDto gostResult = WebSocketServer.send_msg(node.getId(), req, "SetProtocol");
             if (!Objects.equals(gostResult.getMsg(), "OK")){
-                return R.err(gostResult.getMsg());
+                protocolSyncFailed = true;
             }
         }
 
@@ -169,7 +172,13 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
             tunnelService.updateBatchById(outNodeId);
         }
 
-        return result ? R.ok(SUCCESS_UPDATE_MSG) : R.err(ERROR_UPDATE_MSG);
+        if (!result) {
+            return R.err(ERROR_UPDATE_MSG);
+        }
+        if (protocolSyncFailed) {
+            return R.ok(SUCCESS_UPDATE_WITH_PROTOCOL_SYNC_WARNING);
+        }
+        return R.ok(SUCCESS_UPDATE_MSG);
     }
 
     /**
@@ -302,6 +311,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private R checkInNodeUsage(Long nodeId) {
         QueryWrapper<Tunnel> query = new QueryWrapper<>();
         query.eq("in_node_id", nodeId);
+        query.eq("status", TUNNEL_STATUS_ACTIVE);
         
         long tunnelCount = tunnelMapper.selectCount(query);
         if (tunnelCount > 0) {
@@ -321,6 +331,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private R checkOutNodeUsage(Long nodeId) {
         QueryWrapper<Tunnel> query = new QueryWrapper<>();
         query.eq("out_node_id", nodeId);
+        query.eq("status", TUNNEL_STATUS_ACTIVE);
         
         long tunnelCount = tunnelMapper.selectCount(query);
         if (tunnelCount > 0) {

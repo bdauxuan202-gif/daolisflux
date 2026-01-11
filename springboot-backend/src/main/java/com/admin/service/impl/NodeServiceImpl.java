@@ -50,6 +50,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String SUCCESS_CREATE_MSG = "节点创建成功";
     private static final String SUCCESS_UPDATE_MSG = "节点更新成功";
     private static final String SUCCESS_DELETE_MSG = "节点删除成功";
+    private static final String SUCCESS_UPDATE_WITH_PROTOCOL_SYNC_WARNING = "节点更新成功，但协议配置下发失败";
     
     /** 错误响应消息 */
     private static final String ERROR_CREATE_MSG = "节点创建失败";
@@ -66,6 +67,9 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String ERROR_PORT_END_REQUIRED = "结束端口不能为空";
     private static final String ERROR_PORT_RANGE_INVALID = "端口必须在1-65535范围内";
     private static final String ERROR_PORT_ORDER_INVALID = "结束端口不能小于起始端口";
+    private static final int TUNNEL_STATUS_ACTIVE = 1;
+    private static final String DEFAULT_INSTALL_SCRIPT_URL = "https://raw.githubusercontent.com/bdauxuan202-gif/daolisflux/refs/heads/main/panel_install.sh";
+    private static final String INSTALL_SCRIPT_URL_CONFIG_KEY = "install_script_url";
 
     // ========== 依赖注入 ==========
     
@@ -90,6 +94,10 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
      */
     @Override
     public R createNode(NodeDto nodeDto) {
+        String portError = validatePortRange(nodeDto.getPortSta(), nodeDto.getPortEnd());
+        if (portError != null) {
+            return R.err(portError);
+        }
         Node node = buildNewNode(nodeDto);
         boolean result = this.save(node);
         return result ? R.ok(SUCCESS_CREATE_MSG) : R.err(ERROR_CREATE_MSG);
@@ -123,6 +131,10 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
         if (node == null) {
             return R.err(ERROR_NODE_NOT_FOUND);
         }
+        String portError = validatePortRange(nodeUpdateDto.getPortSta(), nodeUpdateDto.getPortEnd());
+        if (portError != null) {
+            return R.err(portError);
+        }
 
         //1.1 如果节点在线 且传入更新的 http/tls/socks 任意一项与数据库不一致，则通过 WS 通知节点更新设置
         boolean online = node.getStatus() != null && node.getStatus() == 1;
@@ -134,6 +146,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
         boolean tlsChanged = newTls != null && !newTls.equals(node.getTls());
         boolean socksChanged = newSocks != null && !newSocks.equals(node.getSocks());
 
+        boolean protocolSyncFailed = false;
         if (online && (httpChanged || tlsChanged || socksChanged)) {
             JSONObject req = new JSONObject();
             req.put("http", newHttp);
@@ -142,7 +155,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
 
             GostDto gostResult = WebSocketServer.send_msg(node.getId(), req, "SetProtocol");
             if (!Objects.equals(gostResult.getMsg(), "OK")){
-                return R.err(gostResult.getMsg());
+                protocolSyncFailed = true;
             }
         }
 
@@ -169,7 +182,13 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
             tunnelService.updateBatchById(outNodeId);
         }
 
-        return result ? R.ok(SUCCESS_UPDATE_MSG) : R.err(ERROR_UPDATE_MSG);
+        if (!result) {
+            return R.err(ERROR_UPDATE_MSG);
+        }
+        if (protocolSyncFailed) {
+            return R.ok(SUCCESS_UPDATE_WITH_PROTOCOL_SYNC_WARNING);
+        }
+        return R.ok(SUCCESS_UPDATE_MSG);
     }
 
     /**
@@ -226,9 +245,6 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
         Node node = new Node();
         BeanUtils.copyProperties(nodeDto, node);
         
-        // 验证端口范围
-        validatePortRange(node.getPortSta(), node.getPortEnd());
-        
         // 设置默认属性
         node.setSecret(IdUtil.simpleUUID());
         node.setStatus(NODE_STATUS_ACTIVE);
@@ -258,9 +274,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
         node.setHttp(nodeUpdateDto.getHttp());
         node.setTls(nodeUpdateDto.getTls());
         node.setSocks(nodeUpdateDto.getSocks());
-        // 验证端口范围
-        validatePortRange(node.getPortSta(), node.getPortEnd());
-        
+
         node.setUpdatedTime(System.currentTimeMillis());
         return node;
     }
@@ -302,6 +316,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private R checkInNodeUsage(Long nodeId) {
         QueryWrapper<Tunnel> query = new QueryWrapper<>();
         query.eq("in_node_id", nodeId);
+        query.eq("status", TUNNEL_STATUS_ACTIVE);
         
         long tunnelCount = tunnelMapper.selectCount(query);
         if (tunnelCount > 0) {
@@ -321,6 +336,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private R checkOutNodeUsage(Long nodeId) {
         QueryWrapper<Tunnel> query = new QueryWrapper<>();
         query.eq("out_node_id", nodeId);
+        query.eq("status", TUNNEL_STATUS_ACTIVE);
         
         long tunnelCount = tunnelMapper.selectCount(query);
         if (tunnelCount > 0) {
@@ -359,22 +375,31 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private R buildInstallCommand(Node node) {
         ViteConfig viteConfig = viteConfigService.getOne(new QueryWrapper<ViteConfig>().eq("name", "ip"));
         if (viteConfig == null) return R.err("请先前往网站配置中设置ip");
+        String installScriptUrl = resolveInstallScriptUrl();
 
         StringBuilder command = new StringBuilder();
         
         // 第一部分：下载安装脚本  
-        command.append("curl -L https://github.com/bqlpfy/flux-panel/releases/download/1.4.3/install.sh")
-               .append(" -o ./install.sh && chmod +x ./install.sh && ");
+        command.append("curl -L ").append(installScriptUrl)
+               .append(" -o panel_install.sh && chmod +x panel_install.sh && ");
         
         // 处理服务器地址，如果是IPv6需要添加方括号
         String processedServerAddr = processServerAddress(viteConfig.getValue());
         
         // 第二部分：执行安装脚本（去掉-u参数）
-        command.append("./install.sh")
+        command.append("./panel_install.sh")
                .append(" -a ").append(processedServerAddr)  // 服务器地址
                .append(" -s ").append(node.getSecret());    // 节点密钥
         
         return R.ok(command.toString());
+    }
+
+    private String resolveInstallScriptUrl() {
+        ViteConfig config = viteConfigService.getOne(new QueryWrapper<ViteConfig>().eq("name", INSTALL_SCRIPT_URL_CONFIG_KEY));
+        if (config != null && StrUtil.isNotBlank(config.getValue())) {
+            return config.getValue().trim();
+        }
+        return DEFAULT_INSTALL_SCRIPT_URL;
     }
 
     /**
@@ -435,26 +460,20 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
      * @param portEnd 结束端口
      * @throws RuntimeException 当端口范围无效时抛出异常
      */
-    private void validatePortRange(Integer portSta, Integer portEnd) {
-        // 检查起始端口是否为空
+    private String validatePortRange(Integer portSta, Integer portEnd) {
         if (portSta == null) {
-            throw new RuntimeException(ERROR_PORT_STA_REQUIRED);
+            return ERROR_PORT_STA_REQUIRED;
         }
-        
-        // 检查结束端口是否为空
         if (portEnd == null) {
-            throw new RuntimeException(ERROR_PORT_END_REQUIRED);
+            return ERROR_PORT_END_REQUIRED;
         }
-        
-        // 检查端口范围是否在有效区间内
         if (portSta < 1 || portSta > 65535 || portEnd < 1 || portEnd > 65535) {
-            throw new RuntimeException(ERROR_PORT_RANGE_INVALID);
+            return ERROR_PORT_RANGE_INVALID;
         }
-        
-        // 检查端口顺序是否正确
         if (portEnd < portSta) {
-            throw new RuntimeException(ERROR_PORT_ORDER_INVALID);
+            return ERROR_PORT_ORDER_INVALID;
         }
+        return null;
     }
 
 }

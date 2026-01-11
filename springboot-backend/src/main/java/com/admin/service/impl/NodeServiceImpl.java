@@ -63,13 +63,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String ERROR_OUT_NODE_IN_USE = "该节点还有 %d 个隧道作为出口节点在使用，请先删除相关隧道";
     
     /** 端口范围验证相关消息 */
-    private static final String ERROR_PORT_STA_REQUIRED = "起始端口不能为空";
-    private static final String ERROR_PORT_END_REQUIRED = "结束端口不能为空";
-    private static final String ERROR_PORT_RANGE_INVALID = "端口必须在1-65535范围内";
-    private static final String ERROR_PORT_ORDER_INVALID = "结束端口不能小于起始端口";
-    private static final int TUNNEL_STATUS_ACTIVE = 1;
-    private static final String DEFAULT_INSTALL_SCRIPT_URL = "https://raw.githubusercontent.com/bdauxuan202-gif/daolisflux/refs/heads/main/panel_install.sh";
-    private static final String INSTALL_SCRIPT_URL_CONFIG_KEY = "install_script_url";
+
 
     // ========== 依赖注入 ==========
     

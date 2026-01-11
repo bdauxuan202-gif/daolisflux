@@ -59,6 +59,13 @@ const CONFIG_ITEMS: ConfigItem[] = [
     type: 'input'
   },
   {
+    key: 'install_script_url',
+    label: '安装脚本地址',
+    placeholder: 'https://raw.githubusercontent.com/your/repo/refs/heads/main/panel_install.sh',
+    description: '节点复制安装命令时使用的脚本地址，请填写你自己的仓库或CDN地址（panel_install.sh）',
+    type: 'input'
+  },
+  {
     key: 'captcha_enabled',
     label: '启用验证码',
     description: '开启后，用户登录时需要完成验证码验证',
@@ -105,7 +112,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
 const getInitialConfigs = (): Record<string, string> => {
   if (typeof window === 'undefined') return {};
   
-  const configKeys = ['app_name', 'captcha_enabled', 'captcha_type', 'ip'];
+  const configKeys = ['app_name', 'captcha_enabled', 'captcha_type', 'ip', 'install_script_url'];
   const initialConfigs: Record<string, string> = {};
   
   try {

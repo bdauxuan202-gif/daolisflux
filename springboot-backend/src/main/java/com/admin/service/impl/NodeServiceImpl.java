@@ -63,11 +63,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String ERROR_OUT_NODE_IN_USE = "该节点还有 %d 个隧道作为出口节点在使用，请先删除相关隧道";
     
     /** 端口范围验证相关消息 */
-    private static final String ERROR_PORT_STA_REQUIRED = "起始端口不能为空";
-    private static final String ERROR_PORT_END_REQUIRED = "结束端口不能为空";
-    private static final String ERROR_PORT_RANGE_INVALID = "端口必须在1-65535范围内";
-    private static final String ERROR_PORT_ORDER_INVALID = "结束端口不能小于起始端口";
-    private static final int TUNNEL_STATUS_ACTIVE = 1;
+
 
     // ========== 依赖注入 ==========
     
@@ -370,22 +366,31 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private R buildInstallCommand(Node node) {
         ViteConfig viteConfig = viteConfigService.getOne(new QueryWrapper<ViteConfig>().eq("name", "ip"));
         if (viteConfig == null) return R.err("请先前往网站配置中设置ip");
+        String installScriptUrl = resolveInstallScriptUrl();
 
         StringBuilder command = new StringBuilder();
         
         // 第一部分：下载安装脚本  
-        command.append("curl -L https://github.com/bqlpfy/flux-panel/releases/download/1.4.3/install.sh")
-               .append(" -o ./install.sh && chmod +x ./install.sh && ");
+        command.append("curl -L ").append(installScriptUrl)
+               .append(" -o panel_install.sh && chmod +x panel_install.sh && ");
         
         // 处理服务器地址，如果是IPv6需要添加方括号
         String processedServerAddr = processServerAddress(viteConfig.getValue());
         
         // 第二部分：执行安装脚本（去掉-u参数）
-        command.append("./install.sh")
+        command.append("./panel_install.sh")
                .append(" -a ").append(processedServerAddr)  // 服务器地址
                .append(" -s ").append(node.getSecret());    // 节点密钥
         
         return R.ok(command.toString());
+    }
+
+    private String resolveInstallScriptUrl() {
+        ViteConfig config = viteConfigService.getOne(new QueryWrapper<ViteConfig>().eq("name", INSTALL_SCRIPT_URL_CONFIG_KEY));
+        if (config != null && StrUtil.isNotBlank(config.getValue())) {
+            return config.getValue().trim();
+        }
+        return DEFAULT_INSTALL_SCRIPT_URL;
     }
 
     /**

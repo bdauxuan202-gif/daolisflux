@@ -20,12 +20,12 @@ public class NodeDto {
     private String serverIp;
 
     @NotNull(message = "起始端口不能为空")
-    @Min(value = 1, message = "起始端口必须大于0")
-    @Max(value = 65535, message = "起始端口不能超过65535")
+    @Min(value = 1, message = "起始端口必须在1-65535之间")
+    @Max(value = 65535, message = "起始端口必须在1-65535之间")
     private Integer portSta;
 
     @NotNull(message = "结束端口不能为空")
-    @Min(value = 1, message = "结束端口必须大于0")
-    @Max(value = 65535, message = "结束端口不能超过65535")
+    @Min(value = 1, message = "结束端口必须在1-65535之间")
+    @Max(value = 65535, message = "结束端口必须在1-65535之间")
     private Integer portEnd;
 } 

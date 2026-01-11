@@ -8,6 +8,7 @@ import axios from 'axios';
 import { isWebViewFunc } from '@/utils/panel';
 import { siteConfig } from '@/config/site';
 import { title } from "@/components/primitives";
+import { Logo } from "@/components/icons";
 import DefaultLayout from "@/layouts/default";
 import { login, LoginData, checkCaptcha } from "@/api";
 import "@/utils/tac.css";
@@ -253,12 +254,23 @@ export default function IndexPage() {
 
   return (
     <DefaultLayout>
-      <section className="flex flex-col items-center justify-center gap-4 py-4 sm:py-8 md:py-10 pb-20 min-h-[calc(100dvh-120px)] sm:min-h-[calc(100dvh-200px)]">
-        <div className="w-full max-w-md px-4 sm:px-0">
-          <Card className="w-full">
-            <CardHeader className="pb-0 pt-6 px-6 flex-col items-center">
-              <h1 className={title({ size: "sm" })}>登陆</h1>
-              <p className="text-small text-default-500 mt-2">请输入您的账号信息</p>
+      <section className="relative flex flex-col items-center justify-center gap-4 py-8 sm:py-12 pb-20 min-h-[calc(100dvh-120px)] sm:min-h-[calc(100dvh-200px)] overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-gradient-to-br from-primary-200/40 via-sky-200/20 to-transparent blur-3xl dark:from-primary-500/20 dark:via-indigo-500/10" />
+          <div className="absolute bottom-10 right-10 h-64 w-64 rounded-full bg-gradient-to-tr from-fuchsia-200/40 via-purple-200/20 to-transparent blur-3xl dark:from-fuchsia-500/20 dark:via-purple-500/10" />
+        </div>
+
+        <div className="w-full max-w-md px-4 sm:px-0 relative">
+          <Card className="w-full border border-white/40 bg-white/80 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/60">
+            <CardHeader className="pb-0 pt-8 px-6 flex-col items-center">
+              <div className="flex items-center gap-3 rounded-full bg-white/80 px-4 py-2 shadow-sm dark:bg-slate-900/80">
+                <Logo size={28} />
+                <span className="text-lg font-semibold tracking-wide text-foreground">{siteConfig.name}</span>
+              </div>
+              <h1 className={`${title({ size: "sm" })} mt-4`}>欢迎登录</h1>
+              <p className="text-small text-default-500 mt-2 text-center">
+                请输入您的账号信息，开始使用 {siteConfig.name}
+              </p>
             </CardHeader>
             <CardBody className="px-6 py-6">
               <div className="flex flex-col gap-4">
@@ -272,6 +284,9 @@ export default function IndexPage() {
                   isDisabled={loading}
                   isInvalid={!!errors.username}
                   errorMessage={errors.username}
+                  classNames={{
+                    inputWrapper: "bg-white/70 dark:bg-slate-900/70"
+                  }}
                 />
                 
                 <Input
@@ -284,6 +299,9 @@ export default function IndexPage() {
                   variant="bordered"
                   isDisabled={loading}
                   isInvalid={!!errors.password}
+                  classNames={{
+                    inputWrapper: "bg-white/70 dark:bg-slate-900/70"
+                  }}
                 />
 
                 
@@ -293,7 +311,7 @@ export default function IndexPage() {
                   onClick={handleLogin}
                   isLoading={loading}
                   disabled={loading}
-                  className="mt-2"
+                  className="mt-2 bg-gradient-to-r from-primary-500 via-sky-500 to-indigo-500 text-white shadow-lg shadow-primary-500/25"
                 >
                   {loading ? (showCaptcha ? "验证中..." : "登录中...") : "登录"}
                 </Button>
@@ -309,12 +327,12 @@ export default function IndexPage() {
                <p className="text-xs text-gray-400 dark:text-gray-500">
                  Powered by{' '}
                  <a 
-                   href="https://github.com/bqlpfy/flux-panel" 
+                   href="https://github.com/bdauxuan202-gif/daolisflux" 
                    target="_blank" 
                    rel="noopener noreferrer"
                    className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                  >
-                   flux-panel
+                   daolisflux
                  </a>
                </p>
                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">

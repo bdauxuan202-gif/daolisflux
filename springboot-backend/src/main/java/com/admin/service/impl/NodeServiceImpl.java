@@ -68,7 +68,7 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
     private static final String ERROR_PORT_RANGE_INVALID = "端口必须在1-65535范围内";
     private static final String ERROR_PORT_ORDER_INVALID = "结束端口不能小于起始端口";
     private static final int TUNNEL_STATUS_ACTIVE = 1;
-    private static final String DEFAULT_INSTALL_SCRIPT_URL = "https://github.com/bqlpfy/flux-panel/releases/download/1.4.3/install.sh";
+    private static final String DEFAULT_INSTALL_SCRIPT_URL = "https://raw.githubusercontent.com/bdauxuan202-gif/daolisflux/refs/heads/main/panel_install.sh";
     private static final String INSTALL_SCRIPT_URL_CONFIG_KEY = "install_script_url";
 
     // ========== 依赖注入 ==========
@@ -378,13 +378,13 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
         
         // 第一部分：下载安装脚本  
         command.append("curl -L ").append(installScriptUrl)
-               .append(" -o ./install.sh && chmod +x ./install.sh && ");
+               .append(" -o panel_install.sh && chmod +x panel_install.sh && ");
         
         // 处理服务器地址，如果是IPv6需要添加方括号
         String processedServerAddr = processServerAddress(viteConfig.getValue());
         
         // 第二部分：执行安装脚本（去掉-u参数）
-        command.append("./install.sh")
+        command.append("./panel_install.sh")
                .append(" -a ").append(processedServerAddr)  // 服务器地址
                .append(" -s ").append(node.getSecret());    // 节点密钥
         

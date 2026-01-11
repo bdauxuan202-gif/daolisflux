@@ -61,8 +61,8 @@ const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: 'install_script_url',
     label: '安装脚本地址',
-    placeholder: 'https://your.repo/path/install.sh',
-    description: '节点复制安装命令时使用的脚本地址，请填写你自己的仓库或CDN地址',
+    placeholder: 'https://raw.githubusercontent.com/your/repo/refs/heads/main/panel_install.sh',
+    description: '节点复制安装命令时使用的脚本地址，请填写你自己的仓库或CDN地址（panel_install.sh）',
     type: 'input'
   },
   {
